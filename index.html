@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'">
+  <title>Harmonic Pendulum</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div id="app">
+    <canvas id="pendulum-canvas"></canvas>
+
+    <div id="controls">
+      <div class="control-header">
+        <h1>Harmonic Pendulum</h1>
+        <div class="transport">
+          <button id="play-btn" class="btn primary">▶ Play</button>
+          <button id="stop-btn" class="btn">■ Stop</button>
+        </div>
+      </div>
+
+      <div class="control-section">
+        <h3>Global Settings</h3>
+        <div class="control-row">
+          <label>Gravity</label>
+          <input type="range" id="gravity" min="0.1" max="2" step="0.1" value="1">
+          <span class="value" id="gravity-val">1.0</span>
+        </div>
+        <div class="control-row">
+          <label>Damping</label>
+          <input type="range" id="damping" min="0.9" max="1" step="0.001" value="0.999">
+          <span class="value" id="damping-val">0.999</span>
+        </div>
+        <div class="control-row">
+          <label>Master Volume</label>
+          <input type="range" id="master-volume" min="0" max="1" step="0.01" value="0.5">
+          <span class="value" id="master-volume-val">50%</span>
+        </div>
+      </div>
+
+      <div class="control-section">
+        <h3>Pendulums <button id="add-pendulum" class="btn small">+ Add</button></h3>
+        <div id="pendulum-list"></div>
+      </div>
+
+      <div class="control-section">
+        <h3>MIDI Output</h3>
+        <div class="control-row">
+          <label>MIDI Device</label>
+          <select id="midi-output">
+            <option value="">No MIDI</option>
+          </select>
+        </div>
+        <div class="control-row">
+          <label>Enable MIDI</label>
+          <input type="checkbox" id="midi-enabled">
+        </div>
+      </div>
+
+      <div class="control-section">
+        <h3>Presets</h3>
+        <div class="preset-buttons">
+          <button class="btn preset" data-preset="minimal">Minimal</button>
+          <button class="btn preset" data-preset="chaos">Chaos</button>
+          <button class="btn preset" data-preset="harmony">Harmony</button>
+          <button class="btn preset" data-preset="polyrhythm">Polyrhythm</button>
+        </div>
+      </div>
+
+      <div class="control-section file-controls">
+        <button id="save-btn" class="btn">Save State</button>
+        <button id="load-btn" class="btn">Load State</button>
+      </div>
+    </div>
+
+    <div id="info-panel">
+      <span id="fps">FPS: 60</span>
+      <span id="pendulum-count">Pendulums: 0</span>
+    </div>
+  </div>
+
+  <script src="js/pendulum.js"></script>
+  <script src="js/audio.js"></script>
+  <script src="js/midi.js"></script>
+  <script src="js/renderer.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>

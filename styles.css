@@ -1,0 +1,276 @@
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+  background: #1a1a2e;
+  color: #eee;
+  overflow: hidden;
+  height: 100vh;
+}
+
+#app {
+  display: flex;
+  height: 100vh;
+}
+
+#pendulum-canvas {
+  flex: 1;
+  background: radial-gradient(ellipse at center, #16213e 0%, #0f0f1a 100%);
+}
+
+#controls {
+  width: 320px;
+  background: #16213e;
+  padding: 20px;
+  overflow-y: auto;
+  border-left: 1px solid #0f3460;
+}
+
+.control-header {
+  margin-bottom: 20px;
+  padding-bottom: 15px;
+  border-bottom: 1px solid #0f3460;
+}
+
+.control-header h1 {
+  font-size: 1.4em;
+  font-weight: 300;
+  color: #e94560;
+  margin-bottom: 15px;
+  letter-spacing: 1px;
+}
+
+.transport {
+  display: flex;
+  gap: 10px;
+}
+
+.btn {
+  background: #0f3460;
+  border: none;
+  color: #eee;
+  padding: 10px 20px;
+  border-radius: 5px;
+  cursor: pointer;
+  font-size: 14px;
+  transition: all 0.2s;
+}
+
+.btn:hover {
+  background: #1a4a7a;
+}
+
+.btn.primary {
+  background: #e94560;
+}
+
+.btn.primary:hover {
+  background: #ff6b6b;
+}
+
+.btn.small {
+  padding: 5px 10px;
+  font-size: 12px;
+}
+
+.btn.preset {
+  flex: 1;
+  padding: 8px;
+  font-size: 12px;
+}
+
+.control-section {
+  margin-bottom: 20px;
+  padding-bottom: 15px;
+  border-bottom: 1px solid #0f3460;
+}
+
+.control-section h3 {
+  font-size: 0.9em;
+  font-weight: 500;
+  color: #888;
+  margin-bottom: 12px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.control-row {
+  display: flex;
+  align-items: center;
+  margin-bottom: 10px;
+  gap: 10px;
+}
+
+.control-row label {
+  flex: 0 0 100px;
+  font-size: 13px;
+  color: #aaa;
+}
+
+.control-row input[type="range"] {
+  flex: 1;
+  -webkit-appearance: none;
+  height: 4px;
+  background: #0f3460;
+  border-radius: 2px;
+  outline: none;
+}
+
+.control-row input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 14px;
+  height: 14px;
+  background: #e94560;
+  border-radius: 50%;
+  cursor: pointer;
+}
+
+.control-row input[type="checkbox"] {
+  width: 18px;
+  height: 18px;
+  accent-color: #e94560;
+}
+
+.control-row select {
+  flex: 1;
+  background: #0f3460;
+  border: none;
+  color: #eee;
+  padding: 8px;
+  border-radius: 4px;
+  font-size: 13px;
+}
+
+.control-row .value {
+  flex: 0 0 50px;
+  text-align: right;
+  font-size: 12px;
+  color: #e94560;
+  font-family: monospace;
+}
+
+.preset-buttons {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.file-controls {
+  display: flex;
+  gap: 10px;
+}
+
+.file-controls .btn {
+  flex: 1;
+}
+
+#pendulum-list {
+  max-height: 300px;
+  overflow-y: auto;
+}
+
+.pendulum-item {
+  background: #0f3460;
+  border-radius: 6px;
+  padding: 12px;
+  margin-bottom: 10px;
+  position: relative;
+}
+
+.pendulum-item .header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 10px;
+}
+
+.pendulum-item .color-dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  display: inline-block;
+  margin-right: 8px;
+}
+
+.pendulum-item .name {
+  font-weight: 500;
+  font-size: 14px;
+}
+
+.pendulum-item .remove-btn {
+  background: transparent;
+  border: none;
+  color: #666;
+  cursor: pointer;
+  font-size: 18px;
+  padding: 0 5px;
+}
+
+.pendulum-item .remove-btn:hover {
+  color: #e94560;
+}
+
+.pendulum-item .control-row {
+  margin-bottom: 6px;
+}
+
+.pendulum-item .control-row label {
+  flex: 0 0 70px;
+  font-size: 11px;
+}
+
+.pendulum-item select {
+  background: #1a1a2e;
+  border: none;
+  color: #eee;
+  padding: 4px 8px;
+  border-radius: 3px;
+  font-size: 11px;
+  flex: 1;
+}
+
+#info-panel {
+  position: fixed;
+  bottom: 10px;
+  left: 10px;
+  background: rgba(0, 0, 0, 0.5);
+  padding: 8px 12px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-family: monospace;
+  color: #888;
+}
+
+#info-panel span {
+  margin-right: 15px;
+}
+
+/* Scrollbar styling */
+::-webkit-scrollbar {
+  width: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: #0f0f1a;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #0f3460;
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #1a4a7a;
+}
+
+/* Animation for active pendulum */
+.pendulum-item.active {
+  box-shadow: 0 0 10px rgba(233, 69, 96, 0.3);
+}
