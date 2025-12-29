@@ -53,6 +53,52 @@ class Renderer {
     }
   }
 
+  drawRings(pendulum) {
+    const ctx = this.ctx;
+
+    for (const ring of pendulum.rings) {
+      if (!ring.enabled) continue;
+
+      // Get drum color from DRUM_TYPES if available
+      let ringColor = '#e94560';
+      if (typeof DRUM_TYPES !== 'undefined') {
+        const drumType = DRUM_TYPES.find(d => d.id === ring.drumType);
+        if (drumType) ringColor = drumType.color;
+      }
+
+      // Draw ring arc (semi-circle below pivot)
+      ctx.beginPath();
+      ctx.strokeStyle = ring.triggered
+        ? ringColor
+        : this.adjustAlpha(ringColor, 0.3);
+      ctx.lineWidth = ring.triggered ? 4 : 2;
+      ctx.arc(pendulum.pivotX, pendulum.pivotY, ring.radius, 0, Math.PI);
+      ctx.stroke();
+
+      // Draw trigger flash
+      if (ring.triggered) {
+        ctx.beginPath();
+        const flashGradient = ctx.createRadialGradient(
+          pendulum.pivotX, pendulum.pivotY + ring.radius, 0,
+          pendulum.pivotX, pendulum.pivotY + ring.radius, 30
+        );
+        flashGradient.addColorStop(0, this.adjustAlpha(ringColor, 0.8));
+        flashGradient.addColorStop(1, 'transparent');
+        ctx.fillStyle = flashGradient;
+        ctx.arc(pendulum.pivotX, pendulum.pivotY + ring.radius, 30, 0, Math.PI * 2);
+        ctx.fill();
+      }
+
+      // Label the ring with drum type
+      ctx.font = '10px monospace';
+      ctx.fillStyle = this.adjustAlpha(ringColor, 0.7);
+      ctx.textAlign = 'left';
+      const labelX = pendulum.pivotX + ring.radius + 5;
+      const labelY = pendulum.pivotY + 4;
+      ctx.fillText(ring.drumType, labelX, labelY);
+    }
+  }
+
   drawPendulum(pendulum, updateResult) {
     const ctx = this.ctx;
     const { bobX, bobY, velocity } = updateResult;

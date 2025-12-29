@@ -3,6 +3,62 @@
  * Simulates simple pendulum motion with configurable parameters
  */
 
+/**
+ * TriggerRing - A ring around the pendulum pivot that triggers drum sounds
+ */
+class TriggerRing {
+  constructor(options = {}) {
+    this.id = options.id || Date.now().toString(36) + Math.random().toString(36).substr(2, 4);
+    this.radius = options.radius || 100;           // Distance from pivot
+    this.drumType = options.drumType || 'kick';    // Which drum sound to trigger
+    this.enabled = options.enabled !== false;
+    this.lastBobDistance = 0;                      // For crossing detection
+    this.triggered = false;                        // Visual feedback flag
+    this.triggerTime = 0;
+  }
+
+  // Check if bob crossed this ring (inward or outward)
+  checkCrossing(bobX, bobY, pivotX, pivotY) {
+    const dx = bobX - pivotX;
+    const dy = bobY - pivotY;
+    const currentDistance = Math.sqrt(dx * dx + dy * dy);
+
+    // Detect crossing in either direction
+    const crossed = (
+      (this.lastBobDistance < this.radius && currentDistance >= this.radius) ||
+      (this.lastBobDistance > this.radius && currentDistance <= this.radius)
+    );
+
+    this.lastBobDistance = currentDistance;
+
+    if (crossed && this.enabled) {
+      this.triggered = true;
+      this.triggerTime = Date.now();
+      return true;
+    }
+
+    // Reset trigger visual after 100ms
+    if (this.triggered && Date.now() - this.triggerTime > 100) {
+      this.triggered = false;
+    }
+
+    return false;
+  }
+
+  serialize() {
+    return {
+      id: this.id,
+      radius: this.radius,
+      drumType: this.drumType,
+      enabled: this.enabled
+    };
+  }
+
+  static deserialize(data) {
+    return new TriggerRing(data);
+  }
+}
+
 class Pendulum {
   constructor(options = {}) {
     this.id = options.id || Date.now().toString(36) + Math.random().toString(36).substr(2);
@@ -33,6 +89,12 @@ class Pendulum {
     this.octave = options.octave || 0;
     this.midiNote = options.midiNote || 60;
     this.midiChannel = options.midiChannel || 1;
+
+    // Trigger rings for drum sounds
+    this.rings = [];
+    if (options.rings) {
+      this.rings = options.rings.map(r => TriggerRing.deserialize(r));
+    }
 
     // State
     this.isPlaying = false;
@@ -81,14 +143,38 @@ class Pendulum {
 
     const crossed = prevCrossing !== 0 && prevCrossing !== this.crossingDirection;
 
+    // Check trigger rings
+    const triggeredRings = [];
+    for (const ring of this.rings) {
+      if (ring.checkCrossing(bobX, bobY, this.pivotX, this.pivotY)) {
+        triggeredRings.push(ring);
+      }
+    }
+
     return {
       bobX,
       bobY,
       velocity: Math.abs(this.angularVelocity),
       amplitude: Math.abs(this.angle),
       crossed,
-      crossingVelocity: crossed ? Math.abs(this.angularVelocity) : 0
+      crossingVelocity: crossed ? Math.abs(this.angularVelocity) : 0,
+      triggeredRings
     };
+  }
+
+  addRing(options = {}) {
+    const ring = new TriggerRing(options);
+    this.rings.push(ring);
+    return ring;
+  }
+
+  removeRing(ringId) {
+    const index = this.rings.findIndex(r => r.id === ringId);
+    if (index !== -1) {
+      this.rings.splice(index, 1);
+      return true;
+    }
+    return false;
   }
 
   getBobPosition() {
@@ -145,7 +231,8 @@ class Pendulum {
       waveform: this.waveform,
       octave: this.octave,
       midiNote: this.midiNote,
-      midiChannel: this.midiChannel
+      midiChannel: this.midiChannel,
+      rings: this.rings.map(r => r.serialize())
     };
   }
 

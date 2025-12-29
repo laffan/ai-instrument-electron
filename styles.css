@@ -277,3 +277,100 @@ body {
 .pendulum-item.active {
   box-shadow: 0 0 10px rgba(233, 69, 96, 0.3);
 }
+
+/* Trigger Rings UI */
+.rings-section {
+  margin-top: 10px;
+  padding-top: 8px;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.rings-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+  font-size: 11px;
+  color: #888;
+  text-transform: uppercase;
+}
+
+.add-ring-btn {
+  background: transparent;
+  border: 1px solid #0f3460;
+  color: #888;
+  padding: 2px 8px;
+  border-radius: 3px;
+  font-size: 10px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.add-ring-btn:hover {
+  background: #0f3460;
+  color: #eee;
+}
+
+.rings-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.ring-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(0, 0, 0, 0.2);
+  padding: 4px 6px;
+  border-radius: 4px;
+}
+
+.ring-color {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.ring-drum-select {
+  flex: 0 0 70px;
+  background: #1a1a2e;
+  border: none;
+  color: #eee;
+  padding: 3px 5px;
+  border-radius: 3px;
+  font-size: 10px;
+}
+
+.ring-radius {
+  flex: 1;
+  -webkit-appearance: none;
+  height: 3px;
+  background: #0f3460;
+  border-radius: 2px;
+  outline: none;
+}
+
+.ring-radius::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 10px;
+  height: 10px;
+  background: #e94560;
+  border-radius: 50%;
+  cursor: pointer;
+}
+
+.ring-remove {
+  background: transparent;
+  border: none;
+  color: #666;
+  cursor: pointer;
+  font-size: 14px;
+  padding: 0 2px;
+  line-height: 1;
+}
+
+.ring-remove:hover {
+  color: #e94560;
+}

@@ -37,6 +37,11 @@
           <input type="range" id="master-volume" min="0" max="1" step="0.01" value="0.5">
           <span class="value" id="master-volume-val">50%</span>
         </div>
+        <div class="control-row">
+          <label>Drum Volume</label>
+          <input type="range" id="drum-volume" min="0" max="1" step="0.01" value="0.7">
+          <span class="value" id="drum-volume-val">70%</span>
+        </div>
       </div>
 
       <div class="control-section">
@@ -62,6 +67,7 @@
         <h3>Presets</h3>
         <div class="preset-buttons">
           <button class="btn preset" data-preset="minimal">Minimal</button>
+          <button class="btn preset" data-preset="beats">Beats</button>
           <button class="btn preset" data-preset="chaos">Chaos</button>
           <button class="btn preset" data-preset="harmony">Harmony</button>
           <button class="btn preset" data-preset="polyrhythm">Polyrhythm</button>
@@ -81,6 +87,7 @@
   </div>
 
   <script src="js/pendulum.js"></script>
+  <script src="js/drums.js"></script>
   <script src="js/audio.js"></script>
   <script src="js/midi.js"></script>
   <script src="js/renderer.js"></script>

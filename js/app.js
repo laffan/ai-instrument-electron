@@ -7,6 +7,7 @@ class HarmonicPendulumApp {
   constructor() {
     this.pendulumSystem = new PendulumSystem();
     this.audioEngine = new AudioEngine();
+    this.drumEngine = null;  // Will be initialized after audio context
     this.midiHandler = new MIDIHandler();
     this.renderer = null;
 
@@ -26,6 +27,10 @@ class HarmonicPendulumApp {
 
     // Initialize audio
     await this.audioEngine.init();
+
+    // Initialize drum engine (uses the same audio context)
+    this.drumEngine = new DrumEngine(this.audioEngine.context, this.audioEngine.masterGain);
+    this.drumEngine.init();
 
     // Initialize MIDI
     await this.midiHandler.init();
@@ -64,6 +69,12 @@ class HarmonicPendulumApp {
       const vol = parseFloat(e.target.value);
       this.audioEngine.setMasterVolume(vol);
       document.getElementById('master-volume-val').textContent = Math.round(vol * 100) + '%';
+    });
+
+    document.getElementById('drum-volume').addEventListener('input', (e) => {
+      const vol = parseFloat(e.target.value);
+      this.drumEngine.setVolume(vol);
+      document.getElementById('drum-volume-val').textContent = Math.round(vol * 100) + '%';
     });
 
     // Add pendulum button
@@ -165,6 +176,29 @@ class HarmonicPendulumApp {
       item.className = 'pendulum-item';
       item.dataset.id = p.id;
 
+      // Build ring options HTML
+      const drumOptions = DRUM_TYPES.map(d =>
+        `<option value="${d.id}">${d.name}</option>`
+      ).join('');
+
+      // Build rings list HTML
+      const ringsHtml = p.rings.map(ring => {
+        const drumType = DRUM_TYPES.find(d => d.id === ring.drumType);
+        const color = drumType ? drumType.color : '#888';
+        return `
+          <div class="ring-item" data-ring-id="${ring.id}">
+            <span class="ring-color" style="background: ${color}"></span>
+            <select class="ring-drum-select">
+              ${DRUM_TYPES.map(d =>
+                `<option value="${d.id}" ${d.id === ring.drumType ? 'selected' : ''}>${d.name}</option>`
+              ).join('')}
+            </select>
+            <input type="range" class="ring-radius" min="40" max="250" value="${ring.radius}" title="Ring radius">
+            <button class="ring-remove">&times;</button>
+          </div>
+        `;
+      }).join('');
+
       item.innerHTML = `
         <div class="header">
           <span>
@@ -177,11 +211,6 @@ class HarmonicPendulumApp {
           <label>Frequency</label>
           <input type="range" class="freq-slider" min="55" max="880" value="${p.baseFrequency}">
           <span class="value">${p.baseFrequency}Hz</span>
-        </div>
-        <div class="control-row">
-          <label>Octave</label>
-          <input type="range" class="octave-slider" min="-2" max="2" step="1" value="${p.octave}">
-          <span class="value">${p.octave}</span>
         </div>
         <div class="control-row">
           <label>Waveform</label>
@@ -197,10 +226,12 @@ class HarmonicPendulumApp {
           <input type="range" class="length-slider" min="50" max="300" value="${p.length}">
           <span class="value">${Math.round(p.length)}px</span>
         </div>
-        <div class="control-row">
-          <label>MIDI Ch</label>
-          <input type="range" class="midi-ch-slider" min="1" max="16" step="1" value="${p.midiChannel}">
-          <span class="value">${p.midiChannel}</span>
+        <div class="rings-section">
+          <div class="rings-header">
+            <span>Trigger Rings</span>
+            <button class="add-ring-btn">+ Ring</button>
+          </div>
+          <div class="rings-list">${ringsHtml}</div>
         </div>
       `;
 
@@ -216,13 +247,6 @@ class HarmonicPendulumApp {
         e.target.nextElementSibling.textContent = p.baseFrequency + 'Hz';
       });
 
-      // Octave slider
-      const octaveSlider = item.querySelector('.octave-slider');
-      octaveSlider.addEventListener('input', (e) => {
-        p.octave = parseInt(e.target.value);
-        e.target.nextElementSibling.textContent = p.octave;
-      });
-
       // Waveform select
       const waveformSelect = item.querySelector('.waveform-select');
       waveformSelect.addEventListener('change', (e) => {
@@ -236,11 +260,34 @@ class HarmonicPendulumApp {
         e.target.nextElementSibling.textContent = Math.round(p.length) + 'px';
       });
 
-      // MIDI channel slider
-      const midiChSlider = item.querySelector('.midi-ch-slider');
-      midiChSlider.addEventListener('input', (e) => {
-        p.midiChannel = parseInt(e.target.value);
-        e.target.nextElementSibling.textContent = p.midiChannel;
+      // Add ring button
+      item.querySelector('.add-ring-btn').addEventListener('click', () => {
+        p.addRing({ radius: 80 + p.rings.length * 40, drumType: 'kick' });
+        this.updatePendulumList();
+      });
+
+      // Ring controls
+      item.querySelectorAll('.ring-item').forEach(ringEl => {
+        const ringId = ringEl.dataset.ringId;
+        const ring = p.rings.find(r => r.id === ringId);
+        if (!ring) return;
+
+        // Drum type select
+        ringEl.querySelector('.ring-drum-select').addEventListener('change', (e) => {
+          ring.drumType = e.target.value;
+          this.updatePendulumList();
+        });
+
+        // Radius slider
+        ringEl.querySelector('.ring-radius').addEventListener('input', (e) => {
+          ring.radius = parseFloat(e.target.value);
+        });
+
+        // Remove ring
+        ringEl.querySelector('.ring-remove').addEventListener('click', () => {
+          p.removeRing(ringId);
+          this.updatePendulumList();
+        });
       });
 
       list.appendChild(item);
@@ -374,6 +421,42 @@ class HarmonicPendulumApp {
         this.addPendulum({ baseFrequency: 330, length: 180, angle: -Math.PI / 5 });
         break;
 
+      case 'beats': {
+        this.pendulumSystem.gravity = 1.0;
+        this.pendulumSystem.damping = 0.9995;
+
+        // Main pendulum with kick and snare rings
+        const p1 = this.addPendulum({
+          baseFrequency: 110,
+          length: 180,
+          angle: Math.PI / 3,
+          waveform: 'triangle'
+        });
+        p1.addRing({ radius: 100, drumType: 'kick' });
+        p1.addRing({ radius: 160, drumType: 'snare' });
+
+        // Hi-hat pendulum (shorter = faster)
+        const p2 = this.addPendulum({
+          baseFrequency: 220,
+          length: 100,
+          angle: Math.PI / 4,
+          waveform: 'sine'
+        });
+        p2.addRing({ radius: 80, drumType: 'hihat' });
+
+        // Accent pendulum
+        const p3 = this.addPendulum({
+          baseFrequency: 330,
+          length: 140,
+          angle: -Math.PI / 4,
+          waveform: 'triangle'
+        });
+        p3.addRing({ radius: 120, drumType: 'rim' });
+
+        this.updatePendulumList();
+        break;
+      }
+
       case 'chaos':
         this.pendulumSystem.gravity = 1.5;
         this.pendulumSystem.damping = 0.998;
@@ -455,7 +538,18 @@ class HarmonicPendulumApp {
           this.midiHandler.triggerNote(result.pendulum, result.crossingVelocity);
         }
 
-        // Draw
+        // Trigger drums for any rings that were crossed
+        if (result.triggeredRings) {
+          result.triggeredRings.forEach(ring => {
+            const velocity = Math.min(result.velocity * 0.5 + 0.5, 1);
+            this.drumEngine.play(ring.drumType, velocity);
+          });
+        }
+
+        // Draw rings first (behind pendulum)
+        this.renderer.drawRings(result.pendulum);
+
+        // Draw pendulum
         this.renderer.drawPendulum(result.pendulum, result);
         this.renderer.drawInfo(result.pendulum, result);
       });
@@ -463,6 +557,11 @@ class HarmonicPendulumApp {
       // Just draw static pendulums
       this.pendulumSystem.pendulums.forEach(p => {
         const pos = p.getBobPosition();
+
+        // Draw rings
+        this.renderer.drawRings(p);
+
+        // Draw pendulum
         this.renderer.drawPendulum(p, {
           bobX: pos.x,
           bobY: pos.y,
