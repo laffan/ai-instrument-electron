@@ -53,50 +53,70 @@ class Renderer {
     }
   }
 
-  drawRings(pendulum) {
+  drawTriggers(pendulum) {
     const ctx = this.ctx;
 
-    for (const ring of pendulum.rings) {
-      if (!ring.enabled) continue;
+    for (const trigger of pendulum.triggers) {
+      if (!trigger.enabled) continue;
 
       // Get drum color from DRUM_TYPES if available
-      let ringColor = '#e94560';
+      let triggerColor = '#e94560';
       if (typeof DRUM_TYPES !== 'undefined') {
-        const drumType = DRUM_TYPES.find(d => d.id === ring.drumType);
-        if (drumType) ringColor = drumType.color;
+        const drumType = DRUM_TYPES.find(d => d.id === trigger.drumType);
+        if (drumType) triggerColor = drumType.color;
       }
 
-      // Draw ring arc (semi-circle below pivot)
+      // Calculate line X position based on trigger angle position
+      const lineX = trigger.getXPosition(pendulum.pivotX, pendulum.length);
+
+      // Draw vertical trigger line from pivot down past the pendulum's reach
+      const lineTop = pendulum.pivotY;
+      const lineBottom = pendulum.pivotY + pendulum.length + 40;
+
       ctx.beginPath();
-      ctx.strokeStyle = ring.triggered
-        ? ringColor
-        : this.adjustAlpha(ringColor, 0.3);
-      ctx.lineWidth = ring.triggered ? 4 : 2;
-      ctx.arc(pendulum.pivotX, pendulum.pivotY, ring.radius, 0, Math.PI);
-      ctx.stroke();
+      ctx.strokeStyle = trigger.triggered
+        ? triggerColor
+        : this.adjustAlpha(triggerColor, 0.4);
+      ctx.lineWidth = trigger.triggered ? 3 : 1;
 
-      // Draw trigger flash
-      if (ring.triggered) {
-        ctx.beginPath();
-        const flashGradient = ctx.createRadialGradient(
-          pendulum.pivotX, pendulum.pivotY + ring.radius, 0,
-          pendulum.pivotX, pendulum.pivotY + ring.radius, 30
-        );
-        flashGradient.addColorStop(0, this.adjustAlpha(ringColor, 0.8));
-        flashGradient.addColorStop(1, 'transparent');
-        ctx.fillStyle = flashGradient;
-        ctx.arc(pendulum.pivotX, pendulum.pivotY + ring.radius, 30, 0, Math.PI * 2);
-        ctx.fill();
+      // Draw dashed line if single direction, solid if both
+      if (trigger.subdivisions < 2) {
+        ctx.setLineDash([4, 4]);
       }
 
-      // Label the ring with drum type
+      ctx.moveTo(lineX, lineTop);
+      ctx.lineTo(lineX, lineBottom);
+      ctx.stroke();
+      ctx.setLineDash([]);
+
+      // Draw trigger flash when triggered
+      if (trigger.triggered) {
+        // Flash along the entire line
+        const flashGradient = ctx.createLinearGradient(lineX - 20, 0, lineX + 20, 0);
+        flashGradient.addColorStop(0, 'transparent');
+        flashGradient.addColorStop(0.5, this.adjustAlpha(triggerColor, 0.6));
+        flashGradient.addColorStop(1, 'transparent');
+
+        ctx.fillStyle = flashGradient;
+        ctx.fillRect(lineX - 20, lineTop, 40, lineBottom - lineTop);
+      }
+
+      // Label at the bottom
       ctx.font = '10px monospace';
-      ctx.fillStyle = this.adjustAlpha(ringColor, 0.7);
-      ctx.textAlign = 'left';
-      const labelX = pendulum.pivotX + ring.radius + 5;
-      const labelY = pendulum.pivotY + 4;
-      ctx.fillText(ring.drumType, labelX, labelY);
+      ctx.fillStyle = this.adjustAlpha(triggerColor, 0.8);
+      ctx.textAlign = 'center';
+      ctx.fillText(trigger.drumType, lineX, lineBottom + 12);
+
+      // Show subdivision indicator
+      if (trigger.subdivisions >= 2) {
+        ctx.fillText('↔', lineX, lineBottom + 24);
+      }
     }
+  }
+
+  // Backwards compatibility alias
+  drawRings(pendulum) {
+    this.drawTriggers(pendulum);
   }
 
   drawPendulum(pendulum, updateResult) {

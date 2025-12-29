@@ -176,25 +176,26 @@ class HarmonicPendulumApp {
       item.className = 'pendulum-item';
       item.dataset.id = p.id;
 
-      // Build ring options HTML
-      const drumOptions = DRUM_TYPES.map(d =>
-        `<option value="${d.id}">${d.name}</option>`
-      ).join('');
-
-      // Build rings list HTML
-      const ringsHtml = p.rings.map(ring => {
-        const drumType = DRUM_TYPES.find(d => d.id === ring.drumType);
+      // Build triggers list HTML
+      const triggersHtml = p.triggers.map(trigger => {
+        const drumType = DRUM_TYPES.find(d => d.id === trigger.drumType);
         const color = drumType ? drumType.color : '#888';
+        // Convert position (radians) to percentage for slider (-1 to 1 range, mapped to angle)
+        const posPercent = Math.round((trigger.position / (Math.PI / 3)) * 100);
         return `
-          <div class="ring-item" data-ring-id="${ring.id}">
-            <span class="ring-color" style="background: ${color}"></span>
-            <select class="ring-drum-select">
+          <div class="trigger-item" data-trigger-id="${trigger.id}">
+            <span class="trigger-color" style="background: ${color}"></span>
+            <select class="trigger-drum-select">
               ${DRUM_TYPES.map(d =>
-                `<option value="${d.id}" ${d.id === ring.drumType ? 'selected' : ''}>${d.name}</option>`
+                `<option value="${d.id}" ${d.id === trigger.drumType ? 'selected' : ''}>${d.name}</option>`
               ).join('')}
             </select>
-            <input type="range" class="ring-radius" min="40" max="250" value="${ring.radius}" title="Ring radius">
-            <button class="ring-remove">&times;</button>
+            <input type="range" class="trigger-position" min="-100" max="100" value="${posPercent}" title="Position (left/right)">
+            <select class="trigger-subdiv" title="Subdivisions">
+              <option value="1" ${trigger.subdivisions === 1 ? 'selected' : ''}>1×</option>
+              <option value="2" ${trigger.subdivisions === 2 ? 'selected' : ''}>2×</option>
+            </select>
+            <button class="trigger-remove">&times;</button>
           </div>
         `;
       }).join('');
@@ -226,12 +227,12 @@ class HarmonicPendulumApp {
           <input type="range" class="length-slider" min="50" max="300" value="${p.length}">
           <span class="value">${Math.round(p.length)}px</span>
         </div>
-        <div class="rings-section">
-          <div class="rings-header">
-            <span>Trigger Rings</span>
-            <button class="add-ring-btn">+ Ring</button>
+        <div class="triggers-section">
+          <div class="triggers-header">
+            <span>Triggers</span>
+            <button class="add-trigger-btn">+ Add</button>
           </div>
-          <div class="rings-list">${ringsHtml}</div>
+          <div class="triggers-list">${triggersHtml}</div>
         </div>
       `;
 
@@ -260,32 +261,39 @@ class HarmonicPendulumApp {
         e.target.nextElementSibling.textContent = Math.round(p.length) + 'px';
       });
 
-      // Add ring button
-      item.querySelector('.add-ring-btn').addEventListener('click', () => {
-        p.addRing({ radius: 80 + p.rings.length * 40, drumType: 'kick' });
+      // Add trigger button
+      item.querySelector('.add-trigger-btn').addEventListener('click', () => {
+        // Add at center position by default
+        p.addTrigger({ position: 0, drumType: 'kick', subdivisions: 2 });
         this.updatePendulumList();
       });
 
-      // Ring controls
-      item.querySelectorAll('.ring-item').forEach(ringEl => {
-        const ringId = ringEl.dataset.ringId;
-        const ring = p.rings.find(r => r.id === ringId);
-        if (!ring) return;
+      // Trigger controls
+      item.querySelectorAll('.trigger-item').forEach(triggerEl => {
+        const triggerId = triggerEl.dataset.triggerId;
+        const trigger = p.triggers.find(t => t.id === triggerId);
+        if (!trigger) return;
 
         // Drum type select
-        ringEl.querySelector('.ring-drum-select').addEventListener('change', (e) => {
-          ring.drumType = e.target.value;
+        triggerEl.querySelector('.trigger-drum-select').addEventListener('change', (e) => {
+          trigger.drumType = e.target.value;
           this.updatePendulumList();
         });
 
-        // Radius slider
-        ringEl.querySelector('.ring-radius').addEventListener('input', (e) => {
-          ring.radius = parseFloat(e.target.value);
+        // Position slider (converts percentage to radians)
+        triggerEl.querySelector('.trigger-position').addEventListener('input', (e) => {
+          const percent = parseFloat(e.target.value);
+          trigger.position = (percent / 100) * (Math.PI / 3);  // Max swing angle ~60 degrees
         });
 
-        // Remove ring
-        ringEl.querySelector('.ring-remove').addEventListener('click', () => {
-          p.removeRing(ringId);
+        // Subdivisions select
+        triggerEl.querySelector('.trigger-subdiv').addEventListener('change', (e) => {
+          trigger.subdivisions = parseInt(e.target.value);
+        });
+
+        // Remove trigger
+        triggerEl.querySelector('.trigger-remove').addEventListener('click', () => {
+          p.removeTrigger(triggerId);
           this.updatePendulumList();
         });
       });
@@ -425,15 +433,15 @@ class HarmonicPendulumApp {
         this.pendulumSystem.gravity = 1.0;
         this.pendulumSystem.damping = 0.9995;
 
-        // Main pendulum with kick and snare rings
+        // Main pendulum with kick at center, snare offset
         const p1 = this.addPendulum({
           baseFrequency: 110,
           length: 180,
           angle: Math.PI / 3,
           waveform: 'triangle'
         });
-        p1.addRing({ radius: 100, drumType: 'kick' });
-        p1.addRing({ radius: 160, drumType: 'snare' });
+        p1.addTrigger({ position: 0, drumType: 'kick', subdivisions: 2 });
+        p1.addTrigger({ position: Math.PI / 6, drumType: 'snare', subdivisions: 1 });
 
         // Hi-hat pendulum (shorter = faster)
         const p2 = this.addPendulum({
@@ -442,16 +450,16 @@ class HarmonicPendulumApp {
           angle: Math.PI / 4,
           waveform: 'sine'
         });
-        p2.addRing({ radius: 80, drumType: 'hihat' });
+        p2.addTrigger({ position: 0, drumType: 'hihat', subdivisions: 2 });
 
-        // Accent pendulum
+        // Accent pendulum with rim at offset position
         const p3 = this.addPendulum({
           baseFrequency: 330,
           length: 140,
           angle: -Math.PI / 4,
           waveform: 'triangle'
         });
-        p3.addRing({ radius: 120, drumType: 'rim' });
+        p3.addTrigger({ position: -Math.PI / 8, drumType: 'rim', subdivisions: 2 });
 
         this.updatePendulumList();
         break;
@@ -538,16 +546,16 @@ class HarmonicPendulumApp {
           this.midiHandler.triggerNote(result.pendulum, result.crossingVelocity);
         }
 
-        // Trigger drums for any rings that were crossed
-        if (result.triggeredRings) {
-          result.triggeredRings.forEach(ring => {
+        // Trigger drums for any lines that were crossed
+        if (result.triggeredLines) {
+          result.triggeredLines.forEach(trigger => {
             const velocity = Math.min(result.velocity * 0.5 + 0.5, 1);
-            this.drumEngine.play(ring.drumType, velocity);
+            this.drumEngine.play(trigger.drumType, velocity);
           });
         }
 
-        // Draw rings first (behind pendulum)
-        this.renderer.drawRings(result.pendulum);
+        // Draw triggers first (behind pendulum)
+        this.renderer.drawTriggers(result.pendulum);
 
         // Draw pendulum
         this.renderer.drawPendulum(result.pendulum, result);
@@ -558,8 +566,8 @@ class HarmonicPendulumApp {
       this.pendulumSystem.pendulums.forEach(p => {
         const pos = p.getBobPosition();
 
-        // Draw rings
-        this.renderer.drawRings(p);
+        // Draw triggers
+        this.renderer.drawTriggers(p);
 
         // Draw pendulum
         this.renderer.drawPendulum(p, {

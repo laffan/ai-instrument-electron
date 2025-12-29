@@ -4,32 +4,50 @@
  */
 
 /**
- * TriggerRing - A ring around the pendulum pivot that triggers drum sounds
+ * TriggerLine - A vertical line that triggers drum sounds when the pendulum crosses it
  */
-class TriggerRing {
+class TriggerLine {
   constructor(options = {}) {
     this.id = options.id || Date.now().toString(36) + Math.random().toString(36).substr(2, 4);
-    this.radius = options.radius || 100;           // Distance from pivot
-    this.drumType = options.drumType || 'kick';    // Which drum sound to trigger
+    this.position = options.position !== undefined ? options.position : 0;  // Angle offset from center (radians), 0 = center
+    this.drumType = options.drumType || 'kick';
     this.enabled = options.enabled !== false;
-    this.lastBobDistance = 0;                      // For crossing detection
-    this.triggered = false;                        // Visual feedback flag
+    this.subdivisions = options.subdivisions || 1;  // 1 = one direction, 2 = both directions
+
+    // State for crossing detection
+    this.lastAngle = null;
+    this.triggered = false;
     this.triggerTime = 0;
   }
 
-  // Check if bob crossed this ring (inward or outward)
-  checkCrossing(bobX, bobY, pivotX, pivotY) {
-    const dx = bobX - pivotX;
-    const dy = bobY - pivotY;
-    const currentDistance = Math.sqrt(dx * dx + dy * dy);
+  // Check if pendulum crossed this line
+  checkCrossing(currentAngle, angularVelocity) {
+    if (this.lastAngle === null) {
+      this.lastAngle = currentAngle;
+      return false;
+    }
 
-    // Detect crossing in either direction
-    const crossed = (
-      (this.lastBobDistance < this.radius && currentDistance >= this.radius) ||
-      (this.lastBobDistance > this.radius && currentDistance <= this.radius)
-    );
+    let crossed = false;
+    const pos = this.position;
 
-    this.lastBobDistance = currentDistance;
+    // Check if we crossed the position
+    const crossedLeft = this.lastAngle > pos && currentAngle <= pos;
+    const crossedRight = this.lastAngle < pos && currentAngle >= pos;
+
+    if (this.subdivisions >= 2) {
+      // Trigger on both directions
+      crossed = crossedLeft || crossedRight;
+    } else {
+      // Trigger only when moving right (positive velocity) - feels more musical
+      crossed = crossedRight && angularVelocity > 0;
+    }
+
+    this.lastAngle = currentAngle;
+
+    // Reset trigger visual after 100ms
+    if (this.triggered && Date.now() - this.triggerTime > 100) {
+      this.triggered = false;
+    }
 
     if (crossed && this.enabled) {
       this.triggered = true;
@@ -37,27 +55,36 @@ class TriggerRing {
       return true;
     }
 
-    // Reset trigger visual after 100ms
-    if (this.triggered && Date.now() - this.triggerTime > 100) {
-      this.triggered = false;
-    }
-
     return false;
+  }
+
+  // Get the X position of this line relative to a pendulum
+  getXPosition(pivotX, pendulumLength) {
+    return pivotX + pendulumLength * Math.sin(this.position);
+  }
+
+  reset() {
+    this.lastAngle = null;
+    this.triggered = false;
   }
 
   serialize() {
     return {
       id: this.id,
-      radius: this.radius,
+      position: this.position,
       drumType: this.drumType,
-      enabled: this.enabled
+      enabled: this.enabled,
+      subdivisions: this.subdivisions
     };
   }
 
   static deserialize(data) {
-    return new TriggerRing(data);
+    return new TriggerLine(data);
   }
 }
+
+// Keep TriggerRing as alias for backwards compatibility with saved files
+const TriggerRing = TriggerLine;
 
 class Pendulum {
   constructor(options = {}) {
@@ -65,8 +92,8 @@ class Pendulum {
     this.name = options.name || `Pendulum ${this.id.substr(0, 4)}`;
 
     // Physical properties
-    this.length = options.length || 150;           // Pendulum arm length
-    this.angle = options.angle || Math.PI / 4;     // Current angle (radians)
+    this.length = options.length || 150;
+    this.angle = options.angle || Math.PI / 4;
     this.angularVelocity = options.angularVelocity || 0;
     this.angularAcceleration = 0;
 
@@ -90,15 +117,26 @@ class Pendulum {
     this.midiNote = options.midiNote || 60;
     this.midiChannel = options.midiChannel || 1;
 
-    // Trigger rings for drum sounds
-    this.rings = [];
-    if (options.rings) {
-      this.rings = options.rings.map(r => TriggerRing.deserialize(r));
+    // Trigger lines for drum sounds (renamed from rings)
+    this.triggers = [];
+    if (options.triggers) {
+      this.triggers = options.triggers.map(t => TriggerLine.deserialize(t));
+    } else if (options.rings) {
+      // Backwards compatibility: convert old ring radius to angle position
+      this.triggers = options.rings.map(r => {
+        // Convert radius to approximate angle (rough conversion)
+        const angle = r.radius ? Math.asin(Math.min(r.radius / 150, 0.95)) * 0.5 : 0;
+        return new TriggerLine({
+          ...r,
+          position: angle,
+          subdivisions: 2
+        });
+      });
     }
 
     // State
     this.isPlaying = false;
-    this.lastCrossing = 0;  // For detecting center crossings
+    this.lastCrossing = 0;
     this.crossingDirection = 0;
   }
 
@@ -143,11 +181,11 @@ class Pendulum {
 
     const crossed = prevCrossing !== 0 && prevCrossing !== this.crossingDirection;
 
-    // Check trigger rings
-    const triggeredRings = [];
-    for (const ring of this.rings) {
-      if (ring.checkCrossing(bobX, bobY, this.pivotX, this.pivotY)) {
-        triggeredRings.push(ring);
+    // Check trigger lines
+    const triggeredLines = [];
+    for (const trigger of this.triggers) {
+      if (trigger.checkCrossing(this.angle, this.angularVelocity)) {
+        triggeredLines.push(trigger);
       }
     }
 
@@ -158,24 +196,29 @@ class Pendulum {
       amplitude: Math.abs(this.angle),
       crossed,
       crossingVelocity: crossed ? Math.abs(this.angularVelocity) : 0,
-      triggeredRings
+      triggeredLines
     };
   }
 
-  addRing(options = {}) {
-    const ring = new TriggerRing(options);
-    this.rings.push(ring);
-    return ring;
+  addTrigger(options = {}) {
+    const trigger = new TriggerLine(options);
+    this.triggers.push(trigger);
+    return trigger;
   }
 
-  removeRing(ringId) {
-    const index = this.rings.findIndex(r => r.id === ringId);
+  removeTrigger(triggerId) {
+    const index = this.triggers.findIndex(t => t.id === triggerId);
     if (index !== -1) {
-      this.rings.splice(index, 1);
+      this.triggers.splice(index, 1);
       return true;
     }
     return false;
   }
+
+  // Backwards compatibility aliases
+  get rings() { return this.triggers; }
+  addRing(options) { return this.addTrigger(options); }
+  removeRing(id) { return this.removeTrigger(id); }
 
   getBobPosition() {
     return {
@@ -205,6 +248,7 @@ class Pendulum {
     this.angle = Math.PI / 4;
     this.trailPoints = [];
     this.crossingDirection = 0;
+    this.triggers.forEach(t => t.reset());
   }
 
   randomize() {
@@ -232,7 +276,7 @@ class Pendulum {
       octave: this.octave,
       midiNote: this.midiNote,
       midiChannel: this.midiChannel,
-      rings: this.rings.map(r => r.serialize())
+      triggers: this.triggers.map(t => t.serialize())
     };
   }
 
