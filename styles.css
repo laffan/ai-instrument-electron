@@ -19,11 +19,14 @@ body {
 
 #pendulum-canvas {
   flex: 1;
+  min-width: 0;
   background: radial-gradient(ellipse at center, #16213e 0%, #0f0f1a 100%);
 }
 
 #controls {
   width: 320px;
+  min-width: 320px;
+  flex-shrink: 0;
   background: #16213e;
   padding: 20px;
   overflow-y: auto;

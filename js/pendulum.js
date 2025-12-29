@@ -47,12 +47,17 @@ class Pendulum {
 
   update(gravity, damping, dt = 1/60) {
     // Simple pendulum equation: θ'' = -(g/L) * sin(θ)
-    const g = gravity * 9.81;
+    // Using scaled gravity for pixel-based lengths (makes pendulums swing at reasonable speeds)
+    const g = gravity * 1500;
     this.angularAcceleration = (-g / this.length) * Math.sin(this.angle);
 
-    // Apply damping
+    // Apply velocity change
     this.angularVelocity += this.angularAcceleration * dt;
-    this.angularVelocity *= damping;
+
+    // Apply damping (scaled to be frame-rate independent)
+    const dampingPerFrame = Math.pow(damping, dt * 60);
+    this.angularVelocity *= dampingPerFrame;
+
     this.angle += this.angularVelocity * dt;
 
     // Calculate bob position
